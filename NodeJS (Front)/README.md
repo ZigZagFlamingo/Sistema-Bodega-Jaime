@@ -6,7 +6,6 @@
 2. Copia la dirección del proyecto (E.g. `C:\...\NodeJS (Front)`)
 3. En una terminal, ejecuta el comando `npm run dev`
 
-````md
 # Sistema de Gestión de Inventario
 
 Este proyecto consiste en el desarrollo de un sistema web orientado a la gestión y control de inventario.  
