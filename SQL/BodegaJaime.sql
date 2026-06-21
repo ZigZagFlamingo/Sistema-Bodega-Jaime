@@ -98,6 +98,142 @@ CREATE TABLE detalle_venta (
     CONSTRAINT fk_detalle_producto FOREIGN KEY (id_producto) REFERENCES producto(id_producto)
 ) ENGINE=InnoDB;
 
+-- Tabla: proveedor
+-- Requerida por HU - Registro de entradas de mercadería
+-- Criterio: Para registrar una entrada es obligatorio seleccionar un proveedor
+CREATE TABLE proveedor (
+    id_proveedor INT          NOT NULL AUTO_INCREMENT,
+    nombre       VARCHAR(150) NOT NULL,
+    contacto     VARCHAR(100),
+    telefono     VARCHAR(20),
+    estado       TINYINT      NOT NULL DEFAULT 1,
+    PRIMARY KEY (id_proveedor)
+) ENGINE=InnoDB;
+
+-- Tabla: entrada
+-- Requerida por HU - Registro de entradas de mercadería
+-- Criterio: Cada entrada registrada contiene: fecha y hora, proveedor,
+--           productos recibidos con su cantidad y precio de costo unitario
+CREATE TABLE entrada (
+    id_entrada   INT      NOT NULL AUTO_INCREMENT,
+    id_proveedor INT      NOT NULL,
+    id_usuario   INT      NOT NULL,
+    fecha_entrada DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    total_costo  DECIMAL(10,2) NOT NULL DEFAULT 0,
+    PRIMARY KEY (id_entrada),
+    CONSTRAINT fk_entrada_proveedor FOREIGN KEY (id_proveedor) REFERENCES proveedor(id_proveedor),
+    CONSTRAINT fk_entrada_usuario   FOREIGN KEY (id_usuario)   REFERENCES usuario(id_usuario)
+) ENGINE=InnoDB;
+
+-- Tabla: detalle_entrada
+-- Requerida por HU - Registro de entradas de mercadería
+-- Criterio: Una entrada puede incluir uno o más productos
+-- Criterio: Para cada producto son obligatorios la cantidad recibida y el precio de costo unitario
+CREATE TABLE detalle_entrada (
+    id_detalle_entrada INT           NOT NULL AUTO_INCREMENT,
+    id_entrada         INT           NOT NULL,
+    id_producto        INT           NOT NULL,
+    cantidad           INT           NOT NULL,
+    precio_costo       DECIMAL(10,2) NOT NULL,
+    subtotal_costo     DECIMAL(10,2) NOT NULL,
+    PRIMARY KEY (id_detalle_entrada),
+    CONSTRAINT fk_detalle_entrada_entrada   FOREIGN KEY (id_entrada)  REFERENCES entrada(id_entrada),
+    CONSTRAINT fk_detalle_entrada_producto  FOREIGN KEY (id_producto) REFERENCES producto(id_producto)
+) ENGINE=InnoDB;
+
+-- Tabla: auditoria_entrada
+-- Requerida por HU - Auditoría de entradas de mercadería
+-- Criterio: Cada modificación registra: fecha y hora del cambio, usuario que la realizó,
+--           qué información fue modificada y el motivo ingresado
+CREATE TABLE auditoria_entrada (
+    id_auditoria_entrada INT      NOT NULL AUTO_INCREMENT,
+    id_entrada           INT      NOT NULL,
+    id_usuario           INT      NOT NULL,
+    fecha_modificacion   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    informacion_modificada TEXT   NOT NULL,
+    motivo               TEXT     NOT NULL,
+    PRIMARY KEY (id_auditoria_entrada),
+    CONSTRAINT fk_auditoria_entrada_entrada  FOREIGN KEY (id_entrada)  REFERENCES entrada(id_entrada),
+    CONSTRAINT fk_auditoria_entrada_usuario  FOREIGN KEY (id_usuario)  REFERENCES usuario(id_usuario)
+) ENGINE=InnoDB;
+
+-- Tabla: tipo_movimiento
+-- Requerida por HU - Historial de movimientos
+-- Criterio: Los tipos de movimiento son: venta, entrada de mercadería, ajuste y modificación de entrada
+CREATE TABLE tipo_movimiento (
+    id_tipo_movimiento INT          NOT NULL AUTO_INCREMENT,
+    nombre             VARCHAR(100) NOT NULL,
+    descripcion        TEXT,
+    PRIMARY KEY (id_tipo_movimiento)
+) ENGINE=InnoDB;
+
+-- Tabla: movimiento_inventario
+-- Requerida por HU - Historial de movimientos
+-- Criterio: Cada movimiento muestra: fecha y hora, tipo de movimiento,
+--           producto, cantidad y responsable
+CREATE TABLE movimiento_inventario (
+    id_movimiento      INT      NOT NULL AUTO_INCREMENT,
+    id_tipo_movimiento INT      NOT NULL,
+    id_producto        INT      NOT NULL,
+    id_usuario         INT      NOT NULL,
+    id_referencia      INT,
+    cantidad           INT      NOT NULL,
+    fecha_movimiento   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_movimiento),
+    CONSTRAINT fk_movimiento_tipo     FOREIGN KEY (id_tipo_movimiento) REFERENCES tipo_movimiento(id_tipo_movimiento),
+    CONSTRAINT fk_movimiento_producto FOREIGN KEY (id_producto)        REFERENCES producto(id_producto),
+    CONSTRAINT fk_movimiento_usuario  FOREIGN KEY (id_usuario)         REFERENCES usuario(id_usuario)
+) ENGINE=InnoDB;
+
+-- Tabla: ajuste_inventario
+-- Requerida por HU - Ajustes de inventario
+-- Criterio: Para registrar un ajuste son obligatorios el producto, la cantidad y el motivo
+-- Criterio: Un ajuste puede ser positivo o negativo
+-- Criterio: Un ajuste registrado no puede editarse ni eliminarse
+CREATE TABLE ajuste_inventario (
+    id_ajuste    INT      NOT NULL AUTO_INCREMENT,
+    id_producto  INT      NOT NULL,
+    id_usuario   INT      NOT NULL,
+    cantidad     INT      NOT NULL,
+    motivo       TEXT     NOT NULL,
+    fecha_ajuste DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_ajuste),
+    CONSTRAINT fk_ajuste_producto FOREIGN KEY (id_producto) REFERENCES producto(id_producto),
+    CONSTRAINT fk_ajuste_usuario  FOREIGN KEY (id_usuario)  REFERENCES usuario(id_usuario)
+) ENGINE=InnoDB;
+
+-- Tabla: conteo_fisico
+-- Requerida por HU - Conteo físico de inventario
+-- Criterio: El sistema programa el próximo conteo dos semanas después del último registrado
+-- Criterio: Un conteo físico registrado no puede editarse una vez confirmado
+CREATE TABLE conteo_fisico (
+    id_conteo        INT      NOT NULL AUTO_INCREMENT,
+    id_usuario       INT      NOT NULL,
+    fecha_conteo     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_proximo    DATE     NOT NULL,
+    tiene_diferencias TINYINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id_conteo),
+    CONSTRAINT fk_conteo_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
+) ENGINE=InnoDB;
+
+-- Tabla: detalle_conteo_fisico
+-- Requerida por HU - Conteo físico de inventario
+-- Criterio: Un conteo incluye todos los productos activos del sistema
+-- Criterio: Para cada producto se registra la cantidad contada físicamente
+-- Criterio: El sistema muestra las diferencias entre el stock registrado y el contado
+-- Criterio: Por cada diferencia el administrador puede registrar un ajuste automático o ignorarla
+CREATE TABLE detalle_conteo_fisico (
+    id_detalle_conteo INT     NOT NULL AUTO_INCREMENT,
+    id_conteo         INT     NOT NULL,
+    id_producto       INT     NOT NULL,
+    stock_sistema     INT     NOT NULL,
+    stock_contado     INT     NOT NULL,
+    diferencia        INT     NOT NULL,
+    ajuste_aplicado   TINYINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id_detalle_conteo),
+    CONSTRAINT fk_detalle_conteo_conteo    FOREIGN KEY (id_conteo)   REFERENCES conteo_fisico(id_conteo),
+    CONSTRAINT fk_detalle_conteo_producto  FOREIGN KEY (id_producto) REFERENCES producto(id_producto)
+) ENGINE=InnoDB;
 -- =============================================================
 --                Vistas F
 -- =============================================================
@@ -1263,3 +1399,667 @@ BEGIN
         SET p_resultado = IF(p_estado = 1, 'OK: Producto activado.', 'OK: Producto inactivado.');
 END$$
 DELIMITER ; -- funciona
+
+-- ========================================================================================================================================
+--                FUNCIONES    -----INVENTARIO-----INVENTARIO-----INVENTARIO-----INVENTARIO-----INVENTARIO
+-- ========================================================================================================================================
+
+-- Verifica si un proveedor existe y está activo
+DELIMITER $$
+CREATE FUNCTION fn_proveedor_activo(p_id_proveedor INT)
+RETURNS BOOLEAN
+READS SQL DATA
+NOT DETERMINISTIC
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM proveedor
+        WHERE id_proveedor = p_id_proveedor AND estado = 1
+    );
+END$$
+DELIMITER ;
+
+-- Verifica si una entrada existe
+DELIMITER $$
+CREATE FUNCTION fn_entrada_existe(p_id_entrada INT)
+RETURNS BOOLEAN
+READS SQL DATA
+NOT DETERMINISTIC
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM entrada
+        WHERE id_entrada = p_id_entrada
+    );
+END$$
+DELIMITER ;
+
+-- Verifica si un producto está activo y disponible para agregar a una entrada
+DELIMITER $$
+CREATE FUNCTION fn_producto_activo(p_id_producto INT)
+RETURNS BOOLEAN
+READS SQL DATA
+NOT DETERMINISTIC
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM producto
+        WHERE id_producto = p_id_producto AND estado = 1
+    );
+END$$
+DELIMITER ;
+
+-- Verifica si un ajuste negativo supera el stock actual del producto
+DELIMITER $$
+CREATE FUNCTION fn_ajuste_negativo_valido(p_id_producto INT, p_cantidad INT)
+RETURNS BOOLEAN
+READS SQL DATA
+NOT DETERMINISTIC
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM producto
+        WHERE id_producto = p_id_producto
+          AND stock_actual >= ABS(p_cantidad)
+    );
+END$$
+DELIMITER ;
+
+-- ========================================================================================================================================
+--                PROCEDIMIENTOS    -----PROVEEDOR-----PROVEEDOR-----PROVEEDOR-----PROVEEDOR-----PROVEEDOR
+-- ========================================================================================================================================
+
+DELIMITER $$
+CREATE PROCEDURE sp_proveedor_crear(
+    IN  p_nombre    VARCHAR(150),
+    IN  p_contacto  VARCHAR(100),
+    IN  p_telefono  VARCHAR(20),
+    OUT p_resultado VARCHAR(200)
+)
+BEGIN
+    IF p_nombre IS NULL OR TRIM(p_nombre) = '' THEN
+        SET p_resultado = 'ERROR: El nombre del proveedor es obligatorio.';
+    ELSEIF EXISTS (
+        SELECT 1 FROM proveedor
+        WHERE LOWER(nombre) = LOWER(TRIM(p_nombre))
+    ) THEN
+        SET p_resultado = 'ERROR: Ya existe un proveedor con ese nombre.';
+    ELSE
+        INSERT INTO proveedor (nombre, contacto, telefono)
+        VALUES (TRIM(p_nombre), TRIM(p_contacto), TRIM(p_telefono));
+        SET p_resultado = 'OK: Proveedor creado.';
+    END IF;
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_proveedor_editar(
+    IN  p_id_proveedor INT,
+    IN  p_nombre       VARCHAR(150),
+    IN  p_contacto     VARCHAR(100),
+    IN  p_telefono     VARCHAR(20),
+    OUT p_resultado    VARCHAR(200)
+)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM proveedor WHERE id_proveedor = p_id_proveedor) THEN
+        SET p_resultado = 'ERROR: El proveedor no existe.';
+    ELSEIF EXISTS (
+        SELECT 1 FROM proveedor
+        WHERE LOWER(nombre) = LOWER(TRIM(p_nombre)) AND id_proveedor != p_id_proveedor
+    ) THEN
+        SET p_resultado = 'ERROR: Ya existe un proveedor con ese nombre.';
+    ELSE
+        UPDATE proveedor
+        SET
+            nombre   = IF(p_nombre   IS NULL OR TRIM(p_nombre)   = '', nombre,   TRIM(p_nombre)),
+            contacto = IF(p_contacto IS NULL OR TRIM(p_contacto) = '', contacto, TRIM(p_contacto)),
+            telefono = IF(p_telefono IS NULL OR TRIM(p_telefono) = '', telefono, TRIM(p_telefono))
+        WHERE id_proveedor = p_id_proveedor;
+        SET p_resultado = IF(
+            (p_nombre   IS NULL OR TRIM(p_nombre)   = '') AND
+            (p_contacto IS NULL OR TRIM(p_contacto) = '') AND
+            (p_telefono IS NULL OR TRIM(p_telefono) = ''),
+            'OK: Ningún cambio realizado.',
+            'OK: Proveedor actualizado.'
+        );
+    END IF;
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_proveedor_cambiar_estado(
+    IN  p_id_proveedor INT,
+    IN  p_estado       TINYINT,
+    OUT p_resultado    VARCHAR(200)
+)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM proveedor WHERE id_proveedor = p_id_proveedor) THEN
+        SET p_resultado = 'ERROR: El proveedor no existe.';
+    ELSE
+        UPDATE proveedor SET estado = p_estado WHERE id_proveedor = p_id_proveedor;
+        SET p_resultado = IF(p_estado = 1, 'OK: Proveedor activado.', 'OK: Proveedor inactivado.');
+    END IF;
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_buscar_proveedores_activos(
+    IN p_nombre   VARCHAR(150),
+    IN p_contacto VARCHAR(100)
+)
+BEGIN
+    SELECT
+        id_proveedor AS "Código",
+        nombre       AS "Nombre",
+        contacto     AS "Contacto",
+        telefono     AS "Teléfono"
+    FROM proveedor
+    WHERE estado = 1
+      AND (p_nombre   IS NULL OR nombre   LIKE CONCAT('%', p_nombre,   '%'))
+      AND (p_contacto IS NULL OR contacto LIKE CONCAT('%', p_contacto, '%'));
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_buscar_proveedores_inactivos(
+    IN p_nombre   VARCHAR(150),
+    IN p_contacto VARCHAR(100)
+)
+BEGIN
+    SELECT
+        id_proveedor AS "Código",
+        nombre       AS "Nombre",
+        contacto     AS "Contacto",
+        telefono     AS "Teléfono"
+    FROM proveedor
+    WHERE estado = 0
+      AND (p_nombre   IS NULL OR nombre   LIKE CONCAT('%', p_nombre,   '%'))
+      AND (p_contacto IS NULL OR contacto LIKE CONCAT('%', p_contacto, '%'));
+END$$
+DELIMITER ;
+
+-- ========================================================================================================================================
+--                PROCEDIMIENTOS    -----ENTRADA-----ENTRADA-----ENTRADA-----ENTRADA-----ENTRADA
+-- ========================================================================================================================================
+
+-- Crea el encabezado de una entrada, retorna el id generado para agregar el detalle
+DELIMITER $$
+CREATE PROCEDURE sp_entrada_crear(
+    IN  e_id_proveedor INT,
+    IN  e_id_usuario   INT,
+    OUT e_id_entrada   INT,
+    OUT e_resultado    VARCHAR(200)
+)
+BEGIN
+    IF e_id_proveedor IS NULL OR NOT fn_proveedor_activo(e_id_proveedor) THEN
+        SET e_id_entrada = NULL;
+        SET e_resultado  = 'ERROR: El proveedor no existe o está inactivo.';
+    ELSEIF e_id_usuario IS NULL OR NOT EXISTS (SELECT 1 FROM usuario WHERE id_usuario = e_id_usuario AND estado = 1) THEN
+        SET e_id_entrada = NULL;
+        SET e_resultado  = 'ERROR: El usuario no existe o está inactivo.';
+    ELSE
+        INSERT INTO entrada (id_proveedor, id_usuario)
+        VALUES (e_id_proveedor, e_id_usuario);
+        SET e_id_entrada = LAST_INSERT_ID();
+        SET e_resultado  = 'OK: Entrada creada.';
+    END IF;
+END$$
+DELIMITER ;
+
+-- Agrega un producto al detalle de una entrada e incrementa el stock del producto
+DELIMITER $$
+CREATE PROCEDURE sp_detalle_entrada_crear(
+    IN  d_id_entrada   INT,
+    IN  d_id_producto  INT,
+    IN  d_cantidad     INT,
+    IN  d_precio_costo DECIMAL(10,2),
+    OUT d_resultado    VARCHAR(200)
+)
+BEGIN
+    DECLARE d_subtotal_costo DECIMAL(10,2);
+
+    IF d_id_entrada IS NULL OR NOT fn_entrada_existe(d_id_entrada) THEN
+        SET d_resultado = 'ERROR: La entrada no existe.';
+    ELSEIF d_id_producto IS NULL OR NOT fn_producto_activo(d_id_producto) THEN
+        SET d_resultado = 'ERROR: El producto no existe o está inactivo.';
+    ELSEIF d_cantidad IS NULL OR d_cantidad <= 0 THEN
+        SET d_resultado = 'ERROR: La cantidad debe ser mayor que cero.';
+    ELSEIF d_precio_costo IS NULL OR d_precio_costo <= 0 THEN
+        SET d_resultado = 'ERROR: El precio de costo debe ser mayor que cero.';
+    ELSE
+        SET d_subtotal_costo = d_cantidad * d_precio_costo;
+
+        INSERT INTO detalle_entrada (id_entrada, id_producto, cantidad, precio_costo, subtotal_costo)
+        VALUES (d_id_entrada, d_id_producto, d_cantidad, d_precio_costo, d_subtotal_costo);
+
+        UPDATE producto
+        SET stock_actual = stock_actual + d_cantidad
+        WHERE id_producto = d_id_producto;
+
+        UPDATE entrada
+        SET total_costo = total_costo + d_subtotal_costo
+        WHERE id_entrada = d_id_entrada;
+
+        INSERT INTO movimiento_inventario (id_tipo_movimiento, id_producto, id_usuario, id_referencia, cantidad)
+        SELECT 2, d_id_producto, e.id_usuario, d_id_entrada, d_cantidad
+        FROM entrada e WHERE e.id_entrada = d_id_entrada;
+
+        SET d_resultado = 'OK: Detalle de entrada registrado.';
+    END IF;
+END$$
+DELIMITER ;
+
+-- Edita el detalle de una entrada existente, registra la auditoría y ajusta el stock
+DELIMITER $$
+CREATE PROCEDURE sp_entrada_editar(
+    IN  e_id_entrada          INT,
+    IN  e_id_detalle_entrada  INT,
+    IN  e_id_usuario          INT,
+    IN  e_nueva_cantidad      INT,
+    IN  e_nuevo_precio_costo  DECIMAL(10,2),
+    IN  e_motivo              TEXT,
+    OUT e_resultado           VARCHAR(200)
+)
+BEGIN
+    DECLARE v_cantidad_anterior     INT;
+    DECLARE v_precio_costo_anterior DECIMAL(10,2);
+    DECLARE v_subtotal_anterior     DECIMAL(10,2);
+    DECLARE v_nuevo_subtotal        DECIMAL(10,2);
+    DECLARE v_diferencia_cantidad   INT;
+    DECLARE v_diferencia_subtotal   DECIMAL(10,2);
+    DECLARE v_id_producto           INT;
+    DECLARE v_info_modificada       TEXT;
+
+    IF NOT fn_entrada_existe(e_id_entrada) THEN
+        SET e_resultado = 'ERROR: La entrada no existe.';
+    ELSEIF NOT EXISTS (
+        SELECT 1 FROM detalle_entrada
+        WHERE id_detalle_entrada = e_id_detalle_entrada AND id_entrada = e_id_entrada
+    ) THEN
+        SET e_resultado = 'ERROR: El detalle no pertenece a la entrada indicada.';
+    ELSEIF e_motivo IS NULL OR TRIM(e_motivo) = '' THEN
+        SET e_resultado = 'ERROR: El motivo de la modificación es obligatorio.';
+    ELSEIF e_nueva_cantidad IS NOT NULL AND e_nueva_cantidad <= 0 THEN
+        SET e_resultado = 'ERROR: La cantidad debe ser mayor que cero.';
+    ELSEIF e_nuevo_precio_costo IS NOT NULL AND e_nuevo_precio_costo <= 0 THEN
+        SET e_resultado = 'ERROR: El precio de costo debe ser mayor que cero.';
+    ELSE
+        SELECT id_producto, cantidad, precio_costo, subtotal_costo
+        INTO v_id_producto, v_cantidad_anterior, v_precio_costo_anterior, v_subtotal_anterior
+        FROM detalle_entrada
+        WHERE id_detalle_entrada = e_id_detalle_entrada;
+
+        SET e_nueva_cantidad     = IFNULL(e_nueva_cantidad,     v_cantidad_anterior);
+        SET e_nuevo_precio_costo = IFNULL(e_nuevo_precio_costo, v_precio_costo_anterior);
+        SET v_nuevo_subtotal     = e_nueva_cantidad * e_nuevo_precio_costo;
+        SET v_diferencia_cantidad = e_nueva_cantidad - v_cantidad_anterior;
+        SET v_diferencia_subtotal = v_nuevo_subtotal  - v_subtotal_anterior;
+
+        UPDATE detalle_entrada
+        SET
+            cantidad       = e_nueva_cantidad,
+            precio_costo   = e_nuevo_precio_costo,
+            subtotal_costo = v_nuevo_subtotal
+        WHERE id_detalle_entrada = e_id_detalle_entrada;
+
+        UPDATE producto
+        SET stock_actual = stock_actual + v_diferencia_cantidad
+        WHERE id_producto = v_id_producto;
+
+        UPDATE entrada
+        SET total_costo = total_costo + v_diferencia_subtotal
+        WHERE id_entrada = e_id_entrada;
+
+        SET v_info_modificada = CONCAT(
+            'Cantidad: ', v_cantidad_anterior, ' → ', e_nueva_cantidad, ' | ',
+            'Precio costo: ', v_precio_costo_anterior, ' → ', e_nuevo_precio_costo
+        );
+
+        INSERT INTO auditoria_entrada (id_entrada, id_usuario, informacion_modificada, motivo)
+        VALUES (e_id_entrada, e_id_usuario, v_info_modificada, TRIM(e_motivo));
+
+        INSERT INTO movimiento_inventario (id_tipo_movimiento, id_producto, id_usuario, id_referencia, cantidad)
+        VALUES (4, v_id_producto, e_id_usuario, e_id_entrada, v_diferencia_cantidad);
+
+        SET e_resultado = 'OK: Entrada actualizada y auditoría registrada.';
+    END IF;
+END$$
+DELIMITER ;
+
+-- Consulta el historial de entradas con filtros opcionales
+DELIMITER $$
+CREATE PROCEDURE sp_buscar_historial_entradas(
+    IN e_id_proveedor INT,
+    IN e_fecha_inicio DATE,
+    IN e_fecha_fin    DATE
+)
+BEGIN
+    SELECT
+        e.id_entrada    AS "Código",
+        e.fecha_entrada AS "Fecha",
+        p.nombre        AS "Proveedor",
+        u.nombre        AS "Registrado por",
+        e.total_costo   AS "Total costo"
+    FROM entrada e
+    INNER JOIN proveedor p ON e.id_proveedor = p.id_proveedor
+    INNER JOIN usuario   u ON e.id_usuario   = u.id_usuario
+    WHERE (e_id_proveedor IS NULL OR e.id_proveedor = e_id_proveedor)
+      AND (e_fecha_inicio IS NULL OR DATE(e.fecha_entrada) >= e_fecha_inicio)
+      AND (e_fecha_fin    IS NULL OR DATE(e.fecha_entrada) <= e_fecha_fin)
+    ORDER BY e.fecha_entrada DESC;
+END$$
+DELIMITER ;
+
+-- Consulta el detalle de una entrada específica
+DELIMITER $$
+CREATE PROCEDURE sp_consultar_detalle_entrada(
+    IN e_id_entrada INT
+)
+BEGIN
+    IF NOT fn_entrada_existe(e_id_entrada) THEN
+        SELECT 'ERROR: La entrada no existe.' AS Mensaje;
+    ELSE
+        SELECT
+            de.id_detalle_entrada AS "Código detalle",
+            p.nombre              AS "Producto",
+            de.cantidad           AS "Cantidad",
+            de.precio_costo       AS "Precio costo",
+            de.subtotal_costo     AS "Subtotal costo"
+        FROM detalle_entrada de
+        INNER JOIN producto p ON de.id_producto = p.id_producto
+        WHERE de.id_entrada = e_id_entrada;
+    END IF;
+END$$
+DELIMITER ;
+
+-- ========================================================================================================================================
+--                PROCEDIMIENTOS    -----AUDITORÍA ENTRADA-----AUDITORÍA ENTRADA-----AUDITORÍA ENTRADA
+-- ========================================================================================================================================
+
+-- Consulta la auditoría de una entrada con filtros opcionales por fecha y usuario
+DELIMITER $$
+CREATE PROCEDURE sp_buscar_auditoria_entrada(
+    IN a_id_entrada  INT,
+    IN a_id_usuario  INT,
+    IN a_fecha_inicio DATE,
+    IN a_fecha_fin    DATE
+)
+BEGIN
+    IF NOT fn_entrada_existe(a_id_entrada) THEN
+        SELECT 'ERROR: La entrada no existe.' AS Mensaje;
+    ELSE
+        SELECT
+            ae.id_auditoria_entrada   AS "Código",
+            ae.fecha_modificacion     AS "Fecha modificación",
+            u.nombre                  AS "Modificado por",
+            ae.informacion_modificada AS "Qué se modificó",
+            ae.motivo                 AS "Motivo"
+        FROM auditoria_entrada ae
+        INNER JOIN usuario u ON ae.id_usuario = u.id_usuario
+        WHERE ae.id_entrada = a_id_entrada
+          AND (a_id_usuario  IS NULL OR ae.id_usuario = a_id_usuario)
+          AND (a_fecha_inicio IS NULL OR DATE(ae.fecha_modificacion) >= a_fecha_inicio)
+          AND (a_fecha_fin    IS NULL OR DATE(ae.fecha_modificacion) <= a_fecha_fin)
+        ORDER BY ae.fecha_modificacion ASC;
+    END IF;
+END$$
+DELIMITER ;
+
+-- ========================================================================================================================================
+--                PROCEDIMIENTOS    -----AJUSTE INVENTARIO-----AJUSTE INVENTARIO-----AJUSTE INVENTARIO
+-- ========================================================================================================================================
+
+DELIMITER $$
+CREATE PROCEDURE sp_ajuste_inventario_crear(
+    IN  a_id_producto INT,
+    IN  a_id_usuario  INT,
+    IN  a_cantidad    INT,
+    IN  a_motivo      TEXT,
+    OUT a_resultado   VARCHAR(200)
+)
+BEGIN
+    IF a_id_producto IS NULL OR NOT fn_producto_activo(a_id_producto) THEN
+        SET a_resultado = 'ERROR: El producto no existe o está inactivo.';
+    ELSEIF a_id_usuario IS NULL OR NOT EXISTS (SELECT 1 FROM usuario WHERE id_usuario = a_id_usuario AND estado = 1) THEN
+        SET a_resultado = 'ERROR: El usuario no existe o está inactivo.';
+    ELSEIF a_cantidad IS NULL OR a_cantidad = 0 THEN
+        SET a_resultado = 'ERROR: La cantidad del ajuste no puede ser cero.';
+    ELSEIF a_motivo IS NULL OR TRIM(a_motivo) = '' THEN
+        SET a_resultado = 'ERROR: El motivo del ajuste es obligatorio.';
+    ELSEIF a_cantidad < 0 AND NOT fn_ajuste_negativo_valido(a_id_producto, a_cantidad) THEN
+        SET a_resultado = 'ERROR: El ajuste negativo supera el stock actual del producto.';
+    ELSE
+        UPDATE producto
+        SET stock_actual = stock_actual + a_cantidad
+        WHERE id_producto = a_id_producto;
+
+        INSERT INTO ajuste_inventario (id_producto, id_usuario, cantidad, motivo)
+        VALUES (a_id_producto, a_id_usuario, a_cantidad, TRIM(a_motivo));
+
+        INSERT INTO movimiento_inventario (id_tipo_movimiento, id_producto, id_usuario, id_referencia, cantidad)
+        VALUES (3, a_id_producto, a_id_usuario, LAST_INSERT_ID(), a_cantidad);
+
+        SET a_resultado = 'OK: Ajuste de inventario registrado.';
+    END IF;
+END$$
+DELIMITER ;
+
+-- Consulta el historial de ajustes con filtros opcionales
+DELIMITER $$
+CREATE PROCEDURE sp_buscar_ajustes_inventario(
+    IN a_id_producto  INT,
+    IN a_fecha_inicio DATE,
+    IN a_fecha_fin    DATE
+)
+BEGIN
+    SELECT
+        aj.id_ajuste    AS "Código",
+        aj.fecha_ajuste AS "Fecha",
+        p.nombre        AS "Producto",
+        aj.cantidad     AS "Cantidad ajustada",
+        u.nombre        AS "Registrado por",
+        aj.motivo       AS "Motivo"
+    FROM ajuste_inventario aj
+    INNER JOIN producto p ON aj.id_producto = p.id_producto
+    INNER JOIN usuario  u ON aj.id_usuario  = u.id_usuario
+    WHERE (a_id_producto  IS NULL OR aj.id_producto = a_id_producto)
+      AND (a_fecha_inicio IS NULL OR DATE(aj.fecha_ajuste) >= a_fecha_inicio)
+      AND (a_fecha_fin    IS NULL OR DATE(aj.fecha_ajuste) <= a_fecha_fin)
+    ORDER BY aj.fecha_ajuste DESC;
+END$$
+DELIMITER ;
+
+-- ========================================================================================================================================
+--                PROCEDIMIENTOS    -----HISTORIAL MOVIMIENTOS-----HISTORIAL MOVIMIENTOS-----HISTORIAL MOVIMIENTOS
+-- ========================================================================================================================================
+
+-- Consulta el historial de movimientos con filtros combinables
+DELIMITER $$
+CREATE PROCEDURE sp_buscar_historial_movimientos(
+    IN m_id_tipo_movimiento INT,
+    IN m_id_producto        INT,
+    IN m_fecha_inicio       DATE,
+    IN m_fecha_fin          DATE
+)
+BEGIN
+    SELECT
+        mi.id_movimiento      AS "Código",
+        mi.fecha_movimiento   AS "Fecha",
+        tm.nombre             AS "Tipo de movimiento",
+        p.nombre              AS "Producto",
+        mi.cantidad           AS "Cantidad",
+        u.nombre              AS "Responsable"
+    FROM movimiento_inventario mi
+    INNER JOIN tipo_movimiento tm ON mi.id_tipo_movimiento = tm.id_tipo_movimiento
+    INNER JOIN producto        p  ON mi.id_producto        = p.id_producto
+    INNER JOIN usuario         u  ON mi.id_usuario         = u.id_usuario
+    WHERE (m_id_tipo_movimiento IS NULL OR mi.id_tipo_movimiento = m_id_tipo_movimiento)
+      AND (m_id_producto        IS NULL OR mi.id_producto        = m_id_producto)
+      AND (m_fecha_inicio       IS NULL OR DATE(mi.fecha_movimiento) >= m_fecha_inicio)
+      AND (m_fecha_fin          IS NULL OR DATE(mi.fecha_movimiento) <= m_fecha_fin)
+    ORDER BY mi.fecha_movimiento DESC;
+END$$
+DELIMITER ;
+
+-- ========================================================================================================================================
+--                PROCEDIMIENTOS    -----CONTEO FÍSICO-----CONTEO FÍSICO-----CONTEO FÍSICO-----CONTEO FÍSICO
+-- ========================================================================================================================================
+
+-- Inicia un conteo físico cargando todos los productos activos con su stock actual
+DELIMITER $$
+CREATE PROCEDURE sp_conteo_fisico_iniciar(
+    IN  c_id_usuario INT,
+    OUT c_id_conteo  INT,
+    OUT c_resultado  VARCHAR(200)
+)
+BEGIN
+    DECLARE v_fecha_proximo DATE;
+
+    IF c_id_usuario IS NULL OR NOT EXISTS (SELECT 1 FROM usuario WHERE id_usuario = c_id_usuario AND estado = 1) THEN
+        SET c_id_conteo = NULL;
+        SET c_resultado = 'ERROR: El usuario no existe o está inactivo.';
+    ELSEIF NOT EXISTS (SELECT 1 FROM producto WHERE estado = 1) THEN
+        SET c_id_conteo = NULL;
+        SET c_resultado = 'ERROR: No hay productos activos para contar.';
+    ELSE
+        SET v_fecha_proximo = DATE_ADD(CURDATE(), INTERVAL 14 DAY);
+
+        INSERT INTO conteo_fisico (id_usuario, fecha_proximo)
+        VALUES (c_id_usuario, v_fecha_proximo);
+
+        SET c_id_conteo = LAST_INSERT_ID();
+
+        INSERT INTO detalle_conteo_fisico (id_conteo, id_producto, stock_sistema, stock_contado, diferencia)
+        SELECT c_id_conteo, id_producto, stock_actual, 0, 0 - stock_actual
+        FROM producto
+        WHERE estado = 1;
+
+        SET c_resultado = 'OK: Conteo físico iniciado.';
+    END IF;
+END$$
+DELIMITER ;
+
+-- Registra la cantidad contada físicamente para un producto dentro de un conteo
+DELIMITER $$
+CREATE PROCEDURE sp_detalle_conteo_registrar(
+    IN  dc_id_conteo       INT,
+    IN  dc_id_producto     INT,
+    IN  dc_stock_contado   INT,
+    OUT dc_resultado       VARCHAR(200)
+)
+BEGIN
+    DECLARE v_stock_sistema INT;
+
+    IF NOT EXISTS (SELECT 1 FROM conteo_fisico WHERE id_conteo = dc_id_conteo) THEN
+        SET dc_resultado = 'ERROR: El conteo no existe.';
+    ELSEIF NOT EXISTS (
+        SELECT 1 FROM detalle_conteo_fisico
+        WHERE id_conteo = dc_id_conteo AND id_producto = dc_id_producto
+    ) THEN
+        SET dc_resultado = 'ERROR: El producto no forma parte de este conteo.';
+    ELSEIF dc_stock_contado IS NULL OR dc_stock_contado < 0 THEN
+        SET dc_resultado = 'ERROR: La cantidad contada no puede ser negativa.';
+    ELSE
+        SELECT stock_sistema INTO v_stock_sistema
+        FROM detalle_conteo_fisico
+        WHERE id_conteo = dc_id_conteo AND id_producto = dc_id_producto;
+
+        UPDATE detalle_conteo_fisico
+        SET
+            stock_contado = dc_stock_contado,
+            diferencia    = dc_stock_contado - v_stock_sistema
+        WHERE id_conteo = dc_id_conteo AND id_producto = dc_id_producto;
+
+        SET dc_resultado = 'OK: Cantidad contada registrada.';
+    END IF;
+END$$
+DELIMITER ;
+
+-- Muestra las diferencias encontradas al finalizar un conteo
+DELIMITER $$
+CREATE PROCEDURE sp_conteo_fisico_ver_diferencias(
+    IN c_id_conteo INT
+)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM conteo_fisico WHERE id_conteo = c_id_conteo) THEN
+        SELECT 'ERROR: El conteo no existe.' AS Mensaje;
+    ELSE
+        UPDATE conteo_fisico
+        SET tiene_diferencias = EXISTS (
+            SELECT 1 FROM detalle_conteo_fisico
+            WHERE id_conteo = c_id_conteo AND diferencia != 0
+        )
+        WHERE id_conteo = c_id_conteo;
+
+        SELECT
+            p.nombre                   AS "Producto",
+            dcf.stock_sistema          AS "Stock en sistema",
+            dcf.stock_contado          AS "Stock contado",
+            dcf.diferencia             AS "Diferencia",
+            dcf.ajuste_aplicado        AS "Ajuste aplicado"
+        FROM detalle_conteo_fisico dcf
+        INNER JOIN producto p ON dcf.id_producto = p.id_producto
+        WHERE dcf.id_conteo = c_id_conteo
+        ORDER BY dcf.diferencia ASC;
+    END IF;
+END$$
+DELIMITER ;
+
+-- Aplica el ajuste automático para un producto con diferencia en el conteo
+DELIMITER $$
+CREATE PROCEDURE sp_conteo_fisico_aplicar_ajuste(
+    IN  c_id_conteo    INT,
+    IN  c_id_producto  INT,
+    IN  c_id_usuario   INT,
+    OUT c_resultado    VARCHAR(200)
+)
+BEGIN
+    DECLARE v_diferencia INT;
+    DECLARE v_ajuste_resultado VARCHAR(200);
+
+    IF NOT EXISTS (SELECT 1 FROM conteo_fisico WHERE id_conteo = c_id_conteo) THEN
+        SET c_resultado = 'ERROR: El conteo no existe.';
+    ELSEIF NOT EXISTS (
+        SELECT 1 FROM detalle_conteo_fisico
+        WHERE id_conteo = c_id_conteo AND id_producto = c_id_producto
+    ) THEN
+        SET c_resultado = 'ERROR: El producto no forma parte de este conteo.';
+    ELSEIF EXISTS (
+        SELECT 1 FROM detalle_conteo_fisico
+        WHERE id_conteo = c_id_conteo AND id_producto = c_id_producto AND ajuste_aplicado = 1
+    ) THEN
+        SET c_resultado = 'ERROR: El ajuste ya fue aplicado para este producto.';
+    ELSE
+        SELECT diferencia INTO v_diferencia
+        FROM detalle_conteo_fisico
+        WHERE id_conteo = c_id_conteo AND id_producto = c_id_producto;
+
+        IF v_diferencia = 0 THEN
+            SET c_resultado = 'OK: No hay diferencia que ajustar para este producto.';
+        ELSE
+            CALL sp_ajuste_inventario_crear(c_id_producto, c_id_usuario, v_diferencia, 'conteo físico', v_ajuste_resultado);
+
+            IF v_ajuste_resultado LIKE 'OK:%' THEN
+                UPDATE detalle_conteo_fisico
+                SET ajuste_aplicado = 1
+                WHERE id_conteo = c_id_conteo AND id_producto = c_id_producto;
+                SET c_resultado = 'OK: Ajuste aplicado desde conteo físico.';
+            ELSE
+                SET c_resultado = v_ajuste_resultado;
+            END IF;
+        END IF;
+    END IF;
+END$$
+DELIMITER ;
+
+-- Consulta el próximo conteo programado
+DELIMITER $$
+CREATE PROCEDURE sp_conteo_fisico_proximo()
+BEGIN
+    SELECT
+        cf.id_conteo     AS "Último conteo",
+        cf.fecha_conteo  AS "Fecha del último conteo",
+        cf.fecha_proximo AS "Próximo conteo programado",
+        u.nombre         AS "Realizado por"
+    FROM conteo_fisico cf
+    INNER JOIN usuario u ON cf.id_usuario = u.id_usuario
+    ORDER BY cf.fecha_conteo DESC
+    LIMIT 1;
+END$$
+DELIMITER ;
