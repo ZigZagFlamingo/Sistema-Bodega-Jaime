@@ -109,3 +109,130 @@ CALL sp_producto_crear(6, 6, 2, 'Sandía',                          10,  2, 1.89
 CALL sp_producto_crear(6, 6, 2, 'Mango',                           30,  8,  3.20, @resultado);
 CALL sp_producto_crear(6, 6, 2, 'Plátano de seda',                 45, 10,  2.10, @resultado);
 CALL sp_producto_crear(6, 6, 3, 'Jugo de naranja natural',         20,  5,  4.00, @resultado);
+
+-- 1. Declarar una variable para el parámetro de salida
+SET @resultado = '';
+
+-- =============================================================
+-- Registro de Proveedores
+-- =============================================================
+CALL sp_proveedor_crear('Distribuidora Gloria S.A.', 'Carlos Mendoza', '987654321', @resultado);
+CALL sp_proveedor_crear('Alicorp Distribución Norte', 'Rosa Fernández', '976543210', @resultado);
+CALL sp_proveedor_crear('Costeño Alimentos S.A.C.', 'Jorge Salinas', '965432109', @resultado);
+CALL sp_proveedor_crear('Coca-Cola Perú', 'Ana Quispe', '954321098', @resultado);
+CALL sp_proveedor_crear('Mercado Mayorista de Frutas y Verduras', 'Pedro Huamán', '943210987', @resultado);
+
+-- =============================================================
+-- Variables de apoyo: usuarios, proveedores y productos
+-- =============================================================
+SET @id_shandee = (SELECT id_usuario FROM usuario WHERE nombre = 'Shandee' LIMIT 1);
+SET @id_gonsalo = (SELECT id_usuario FROM usuario WHERE nombre = 'Gonsalo' LIMIT 1);
+SET @id_luis    = (SELECT id_usuario FROM usuario WHERE nombre = 'Luis'    LIMIT 1);
+SET @id_franco  = (SELECT id_usuario FROM usuario WHERE nombre = 'Franco'  LIMIT 1);
+
+SET @id_prov_gloria    = (SELECT id_proveedor FROM proveedor WHERE nombre = 'Distribuidora Gloria S.A.' LIMIT 1);
+SET @id_prov_alicorp   = (SELECT id_proveedor FROM proveedor WHERE nombre = 'Alicorp Distribución Norte' LIMIT 1);
+SET @id_prov_costeno   = (SELECT id_proveedor FROM proveedor WHERE nombre = 'Costeño Alimentos S.A.C.' LIMIT 1);
+SET @id_prov_cocacola  = (SELECT id_proveedor FROM proveedor WHERE nombre = 'Coca-Cola Perú' LIMIT 1);
+SET @id_prov_mercado   = (SELECT id_proveedor FROM proveedor WHERE nombre = 'Mercado Mayorista de Frutas y Verduras' LIMIT 1);
+
+SET @id_leche_entera    = (SELECT id_producto FROM producto WHERE nombre = 'Leche Gloria Entera 1L' LIMIT 1);
+SET @id_leche_semi      = (SELECT id_producto FROM producto WHERE nombre = 'Leche Gloria Semidescremada 1L' LIMIT 1);
+SET @id_yogurt_fresa    = (SELECT id_producto FROM producto WHERE nombre = 'Yogurt Gloria Fresa 1L' LIMIT 1);
+SET @id_aceite_1l       = (SELECT id_producto FROM producto WHERE nombre = 'Aceite Primor 1L' LIMIT 1);
+SET @id_aceite_500ml    = (SELECT id_producto FROM producto WHERE nombre = 'Aceite Primor 500ML' LIMIT 1);
+SET @id_arroz_1kg       = (SELECT id_producto FROM producto WHERE nombre = 'Arroz Costeño Extra 1KG' LIMIT 1);
+SET @id_arroz_5kg       = (SELECT id_producto FROM producto WHERE nombre = 'Arroz Costeño Extra 5KG' LIMIT 1);
+SET @id_cocacola_15l    = (SELECT id_producto FROM producto WHERE nombre = 'Coca-Cola 1.5L' LIMIT 1);
+SET @id_cocacola_500ml  = (SELECT id_producto FROM producto WHERE nombre = 'Coca-Cola 500ML' LIMIT 1);
+SET @id_cebolla         = (SELECT id_producto FROM producto WHERE nombre = 'Cebolla Roja' LIMIT 1);
+SET @id_tomate          = (SELECT id_producto FROM producto WHERE nombre = 'Tomate' LIMIT 1);
+SET @id_papa            = (SELECT id_producto FROM producto WHERE nombre = 'Papa Blanca' LIMIT 1);
+SET @id_sandia          = (SELECT id_producto FROM producto WHERE nombre = 'Sandía' LIMIT 1);
+SET @id_mango           = (SELECT id_producto FROM producto WHERE nombre = 'Mango' LIMIT 1);
+
+-- =============================================================
+-- Registro de Entradas de mercadería
+-- =============================================================
+
+-- Entrada 1: Distribuidora Gloria - lácteos
+SET @id_entrada = NULL;
+CALL sp_entrada_crear(@id_prov_gloria, @id_gonsalo, @id_entrada, @resultado);
+SET @id_entrada_1 = @id_entrada;
+CALL sp_detalle_entrada_crear(@id_entrada_1, @id_leche_entera, 50, 3.20, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_1, @id_leche_semi,   40, 3.35, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_1, @id_yogurt_fresa, 30, 4.50, @resultado);
+
+-- Entrada 2: Alicorp - aceites
+SET @id_entrada = NULL;
+CALL sp_entrada_crear(@id_prov_alicorp, @id_gonsalo, @id_entrada, @resultado);
+SET @id_entrada_2 = @id_entrada;
+CALL sp_detalle_entrada_crear(@id_entrada_2, @id_aceite_1l,    40, 5.60, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_2, @id_aceite_500ml, 50, 3.50, @resultado);
+
+-- Entrada 3: Costeño - arroz
+SET @id_entrada = NULL;
+CALL sp_entrada_crear(@id_prov_costeno, @id_shandee, @id_entrada, @resultado);
+SET @id_entrada_3 = @id_entrada;
+CALL sp_detalle_entrada_crear(@id_entrada_3, @id_arroz_1kg, 150, 2.70, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_3, @id_arroz_5kg,  60, 12.80, @resultado);
+
+-- Entrada 4: Coca-Cola Perú - bebidas
+SET @id_entrada = NULL;
+CALL sp_entrada_crear(@id_prov_cocacola, @id_shandee, @id_entrada, @resultado);
+SET @id_entrada_4 = @id_entrada;
+CALL sp_detalle_entrada_crear(@id_entrada_4, @id_cocacola_15l,   25, 4.00, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_4, @id_cocacola_500ml, 40, 2.30, @resultado);
+
+-- Entrada 5: Mercado Mayorista - verduras y frutas
+SET @id_entrada = NULL;
+CALL sp_entrada_crear(@id_prov_mercado, @id_gonsalo, @id_entrada, @resultado);
+SET @id_entrada_5 = @id_entrada;
+CALL sp_detalle_entrada_crear(@id_entrada_5, @id_cebolla, 25, 3.00, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_5, @id_tomate,  30, 1.80, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_5, @id_papa,    60, 1.20, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_5, @id_sandia,  15, 1.10, @resultado);
+CALL sp_detalle_entrada_crear(@id_entrada_5, @id_mango,   20, 2.00, @resultado);
+
+-- =============================================================
+-- Edición de una entrada (genera registro de auditoría)
+-- =============================================================
+
+-- Se corrige la cantidad y el precio de costo registrado para la leche entera
+SET @id_detalle_a_editar = (
+    SELECT id_detalle_entrada FROM detalle_entrada
+    WHERE id_entrada = @id_entrada_1 AND id_producto = @id_leche_entera
+    LIMIT 1
+);
+CALL sp_entrada_editar(@id_entrada_1, @id_detalle_a_editar, @id_gonsalo, 55, 3.10, 'Corrección de cantidad y precio según factura del proveedor', @resultado);
+
+-- =============================================================
+-- Registro de Ajustes de inventario
+-- =============================================================
+
+-- Ajuste negativo: mermas de productos perecibles
+CALL sp_ajuste_inventario_crear(@id_tomate, @id_shandee, -5, 'Merma por productos en mal estado', @resultado);
+CALL sp_ajuste_inventario_crear(@id_sandia, @id_shandee, -2, 'Producto dañado durante el transporte', @resultado);
+
+-- Ajuste positivo: corrección de un conteo manual previo
+CALL sp_ajuste_inventario_crear(@id_arroz_1kg, @id_gonsalo, 10, 'Se encontraron sacos adicionales no registrados en el almacén', @resultado);
+
+-- =============================================================
+-- Conteo físico de inventario
+-- =============================================================
+
+-- Se inicia un conteo físico, cargando todos los productos activos
+SET @id_conteo = NULL;
+CALL sp_conteo_fisico_iniciar(@id_shandee, @id_conteo, @resultado);
+
+-- Se registra la cantidad contada físicamente para algunos productos
+-- (el resto de productos del conteo queda en 0 por defecto, simulando que aún no han sido contados)
+CALL sp_detalle_conteo_registrar(@id_conteo, @id_cebolla, 18, @resultado);
+CALL sp_detalle_conteo_registrar(@id_conteo, @id_papa,    95, @resultado);
+CALL sp_detalle_conteo_registrar(@id_conteo, @id_mango,   28, @resultado);
+
+-- Se consultan las diferencias encontradas en el conteo
+CALL sp_conteo_fisico_ver_diferencias(@id_conteo);
+
+-- Se aplica el ajuste automático para el producto con menor stock físico que el registrado
+CALL sp_conteo_fisico_aplicar_ajuste(@id_conteo, @id_cebolla, @id_shandee, @resultado);
